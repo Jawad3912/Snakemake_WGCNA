@@ -1,0 +1,92 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+description: Configuration of the consensus WGCNA workflow (config/config.yaml)
+type: object
+
+definitions:
+  probability:
+    type: number
+    exclusiveMinimum: 0
+    exclusiveMaximum: 1
+  positive_int:
+    type: integer
+    minimum: 1
+
+properties:
+  datasets:
+    type: object
+    propertyNames: { pattern: "^[A-Za-z0-9]+$" }
+    minProperties: 2
+    additionalProperties:
+      type: object
+      properties:
+        label: { type: string }
+        bioproject: { type: string }
+        counts: { type: string }
+        design: { type: string }
+        alternative_power: { $ref: "#/definitions/positive_int" }
+      required: [label, bioproject, counts, design, alternative_power]
+      additionalProperties: false
+  sample_info: { type: string }
+  module_colour_reference: { type: string }
+  fdr: { $ref: "#/definitions/probability" }
+  r2_cut: { $ref: "#/definitions/probability" }
+  min_module_size: { $ref: "#/definitions/positive_int" }
+  deep_split: { type: integer, minimum: 0, maximum: 4 }
+  merge_cut: { $ref: "#/definitions/probability" }
+  merge_heights:
+    type: array
+    items: { $ref: "#/definitions/probability" }
+    minItems: 1
+  r_cut: { $ref: "#/definitions/probability" }
+  n_perm_trait: { type: integer, minimum: 0 }
+  n_perm_preservation: { $ref: "#/definitions/positive_int" }
+  min_zsummary: { type: number }
+  mm_cut: { $ref: "#/definitions/probability" }
+  gs_cut: { $ref: "#/definitions/probability" }
+  expression_min_count: { type: integer, minimum: 0 }
+  gprofiler_url: { type: string, pattern: "^https?://" }
+  seed: { type: integer }
+  threads:
+    type: object
+    properties:
+      consensus_network: { $ref: "#/definitions/positive_int" }
+      module_preservation: { $ref: "#/definitions/positive_int" }
+      merge_height_expression_network: { $ref: "#/definitions/positive_int" }
+      leave_one_out_network: { $ref: "#/definitions/positive_int" }
+      power_sensitivity: { $ref: "#/definitions/positive_int" }
+    required:
+      - consensus_network
+      - module_preservation
+      - merge_height_expression_network
+      - leave_one_out_network
+      - power_sensitivity
+  upstream_software:
+    type: object
+    properties:
+      step: { type: string }
+      versions:
+        type: object
+        additionalProperties: { type: string }
+    required: [step, versions]
+
+required:
+  - datasets
+  - sample_info
+  - module_colour_reference
+  - fdr
+  - r2_cut
+  - min_module_size
+  - deep_split
+  - merge_cut
+  - merge_heights
+  - r_cut
+  - n_perm_trait
+  - n_perm_preservation
+  - min_zsummary
+  - mm_cut
+  - gs_cut
+  - expression_min_count
+  - gprofiler_url
+  - seed
+  - threads
+  - upstream_software

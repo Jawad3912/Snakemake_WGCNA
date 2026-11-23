@@ -1,0 +1,287 @@
+from snakemake.utils import min_version, validate
+
+min_version("8.0")
+
+
+configfile: "config/config.yaml"
+
+
+validate(config, "schemas/config.schema.yaml")
+
+DATASETS = list(config["datasets"])
+FIGURES = [1, 2, 3, 4]
+SI_FIGURES = range(1, 12)
+SI_TABLES = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11]
+SI_INPUT_TABLES = [
+    "sample_characteristics",
+    "DEGs_per_dataset",
+    "meta_analysis_summary",
+    "direction_concordance",
+    "soft_threshold_choice",
+    "soft_threshold_all_powers",
+    "module_sizes",
+    "hub_genes",
+    "MM_GS_eligible_modules",
+    "hub_summary",
+    "eigengene_correlation",
+    "merge_height_sensitivity",
+    "expression_network_main_modules",
+    "expression_network_eligible",
+    "expression_network_powers",
+    "expression_network_module_assignment",
+    "expression_network_pooled",
+    "expression_network_module_trait",
+    "leave_one_out_pooled_r",
+    "leave_one_out_networks",
+    "leave_one_out_main_modules",
+    "power_sensitivity",
+]
+
+
+wildcard_constraints:
+    dataset="|".join(DATASETS),
+
+
+localrules:
+    all,
+
+
+def threads(rule):
+    return config["threads"][rule]
+
+
+rule all:
+    input:
+        expand("results/figures/Fig{i}.{ext}", i=FIGURES, ext=["pdf", "jpg"]),
+        expand("results/supporting_information/S{i}_Fig.pdf", i=SI_FIGURES),
+        expand("results/supporting_information/S{i}_Table.xlsx", i=SI_TABLES),
+        "results/tables/geneXplain_input_black_hub_genes.csv",
+
+
+rule deseq2_meta_analysis:
+    input:
+        counts=[config["datasets"][d]["counts"] for d in DATASETS],
+        samples=config["sample_info"],
+    output:
+        data="results/rds/data.rds",
+        deseq2="results/rds/deseq2.rds",
+        meta_rds="results/rds/meta.rds",
+        samples="results/tables/sample_characteristics.csv",
+        degs="results/tables/DEGs_per_dataset.csv",
+        meta="results/tables/meta_analysis_all_genes.csv",
+        meta_summary="results/tables/meta_analysis_summary.csv",
+        direction="results/tables/direction_concordance.csv",
+    log:
+        "logs/deseq2_meta_analysis.log",
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/01_deseq2_meta_analysis.R"
+
+
+rule consensus_network:
+    input:
+        data="results/rds/data.rds",
+        meta="results/rds/meta.rds",
+        reference=config["module_colour_reference"],
+    output:
+        multiExpr="results/rds/multiExpr.rds",
+        powers="results/rds/powers.rds",
+        network="results/rds/network.rds",
+        module_trait="results/rds/module_trait.rds",
+        all_powers="results/tables/soft_threshold_all_powers.csv",
+        choice="results/tables/soft_threshold_choice.csv",
+        sizes="results/tables/module_sizes.csv",
+        modules="results/tables/module_assignment.csv",
+        per_dataset="results/tables/module_trait_per_dataset.csv",
+        pooled="results/tables/module_trait_pooled.csv",
+    log:
+        "logs/consensus_network.log",
+    threads: threads("consensus_network")
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/02_consensus_network.R"
+
+
+rule module_preservation:
+    input:
+        multiExpr="results/rds/multiExpr.rds",
+        network="results/rds/network.rds",
+    output:
+        "results/rds/preservation_{dataset}.rds",
+    log:
+        "logs/module_preservation_{dataset}.log",
+    threads: threads("module_preservation")
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/03_module_preservation.R"
+
+
+rule hub_genes:
+    input:
+        data="results/rds/data.rds",
+        meta="results/rds/meta.rds",
+        multiExpr="results/rds/multiExpr.rds",
+        network="results/rds/network.rds",
+        module_trait="results/rds/module_trait.rds",
+        preservation=expand("results/rds/preservation_{dataset}.rds", dataset=DATASETS),
+    output:
+        selection="results/rds/selection.rds",
+        hubs="results/rds/hub_genes.rds",
+        all_pairs="results/tables/preservation_all_pairs.csv",
+        per_module="results/tables/preservation_per_module.csv",
+        candidates="results/tables/module_selection.csv",
+        mm_gs="results/tables/MM_GS_eligible_modules.csv",
+        hub_genes="results/tables/hub_genes.csv",
+        hub_summary="results/tables/hub_summary.csv",
+        eigengenes="results/tables/eigengene_correlation.csv",
+        genexplain="results/tables/geneXplain_input_black_hub_genes.csv",
+    log:
+        "logs/hub_genes.log",
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/04a_hub_genes.R"
+
+
+rule enrichment:
+    input:
+        data="results/rds/data.rds",
+        meta="results/rds/meta.rds",
+        selection="results/rds/selection.rds",
+        hubs="results/rds/hub_genes.rds",
+    output:
+        enrichment="results/rds/enrichment.rds",
+        enrichment_csv="results/tables/enrichment.csv",
+        term_counts="results/tables/enrichment_term_counts.csv",
+    log:
+        "logs/enrichment.log",
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/04b_enrichment.R"
+
+
+rule merge_height_expression_network:
+    input:
+        data="results/rds/data.rds",
+        meta="results/rds/meta.rds",
+        multiExpr="results/rds/multiExpr.rds",
+        network="results/rds/network.rds",
+        selection="results/rds/selection.rds",
+        hubs="results/rds/hub_genes.rds",
+    output:
+        merge_height="results/tables/merge_height_sensitivity.csv",
+        main_modules="results/tables/expression_network_main_modules.csv",
+        eligible="results/tables/expression_network_eligible.csv",
+        powers="results/tables/expression_network_powers.csv",
+        module_trait="results/tables/expression_network_module_trait.csv",
+        pooled="results/tables/expression_network_pooled.csv",
+        modules="results/tables/expression_network_module_assignment.csv",
+    log:
+        "logs/merge_height_expression_network.log",
+    threads: threads("merge_height_expression_network")
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/05_merge_height_expression_network.R"
+
+
+rule leave_one_out_network:
+    input:
+        data="results/rds/data.rds",
+        deseq2="results/rds/deseq2.rds",
+        meta="results/rds/meta.rds",
+        hubs="results/rds/hub_genes.rds",
+    output:
+        "results/rds/leave_one_out_{dataset}.rds",
+    log:
+        "logs/leave_one_out_network_{dataset}.log",
+    threads: threads("leave_one_out_network")
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/06a_leave_one_out_network.R"
+
+
+rule power_sensitivity:
+    input:
+        multiExpr="results/rds/multiExpr.rds",
+        powers="results/rds/powers.rds",
+        hubs="results/rds/hub_genes.rds",
+    output:
+        "results/tables/power_sensitivity.csv",
+    log:
+        "logs/power_sensitivity.log",
+    threads: threads("power_sensitivity")
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/06b_power_sensitivity.R"
+
+
+rule leave_one_out_summary:
+    input:
+        networks=expand("results/rds/leave_one_out_{dataset}.rds", dataset=DATASETS),
+        module_trait="results/rds/module_trait.rds",
+        hubs="results/rds/hub_genes.rds",
+    output:
+        loo_pooled="results/tables/leave_one_out_pooled_r.csv",
+        loo_networks="results/tables/leave_one_out_networks.csv",
+        loo_main_modules="results/tables/leave_one_out_main_modules.csv",
+    log:
+        "logs/leave_one_out_summary.log",
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/06c_leave_one_out_summary.R"
+
+
+rule main_figures:
+    input:
+        data="results/rds/data.rds",
+        multiExpr="results/rds/multiExpr.rds",
+        powers="results/rds/powers.rds",
+        network="results/rds/network.rds",
+        module_trait="results/rds/module_trait.rds",
+        selection="results/rds/selection.rds",
+        hubs="results/rds/hub_genes.rds",
+        all_powers="results/tables/soft_threshold_all_powers.csv",
+        enrichment="results/rds/enrichment.rds",
+    output:
+        pdf=expand("results/figures/Fig{i}.pdf", i=FIGURES),
+        jpg=expand("results/figures/Fig{i}.jpg", i=FIGURES),
+        panels=expand(
+            "results/figures/panels/{panel}.png",
+            panel=["Fig2B", "Fig2C_dendrogram", "Fig2C_heatmap"],
+        ),
+    log:
+        "logs/main_figures.log",
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/07_main_figures.R"
+
+
+rule supporting_information:
+    input:
+        data="results/rds/data.rds",
+        meta="results/rds/meta.rds",
+        powers="results/rds/powers.rds",
+        network="results/rds/network.rds",
+        module_trait="results/rds/module_trait.rds",
+        selection="results/rds/selection.rds",
+        hubs="results/rds/hub_genes.rds",
+        enrichment="results/rds/enrichment.rds",
+        **{t: f"results/tables/{t}.csv" for t in SI_INPUT_TABLES},
+    output:
+        figures=expand("results/supporting_information/S{i}_Fig.pdf", i=SI_FIGURES),
+        tables=expand("results/supporting_information/S{i}_Table.xlsx", i=SI_TABLES),
+    log:
+        "logs/supporting_information.log",
+    conda:
+        "envs/wgcna.yaml"
+    script:
+        "scripts/08_supporting_information.R"

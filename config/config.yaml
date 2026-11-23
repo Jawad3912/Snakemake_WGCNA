@@ -1,0 +1,64 @@
+datasets:
+  Ecoli:
+    label: "E. coli"
+    bioproject: PRJNA304027
+    counts: data/counts/Ecoli_salmon.merged.gene_counts.tsv.gz
+    design: "~ cow + condition"
+    alternative_power: 18
+  Staph:
+    label: "S. aureus"
+    bioproject: PRJNA878880
+    counts: data/counts/Staph_salmon.merged.gene_counts.tsv.gz
+    design: "~ farm + parity + lactation + condition"
+    alternative_power: 16
+  Natural:
+    label: "Natural mastitis"
+    bioproject: PRJNA544129
+    counts: data/counts/Natural_salmon.merged.gene_counts.tsv.gz
+    design: "~ cow + condition"
+    alternative_power: 18
+
+sample_info: data/sample_info.csv
+module_colour_reference: data/module_colour_reference.csv
+
+fdr: 0.05
+
+r2_cut: 0.8
+min_module_size: 30
+deep_split: 2
+merge_cut: 0.25
+merge_heights: [0.15, 0.20, 0.25, 0.30, 0.35, 0.45, 0.55]
+
+r_cut: 0.6
+n_perm_trait: 10000
+n_perm_preservation: 1000
+min_zsummary: 10
+
+mm_cut: 0.8
+gs_cut: 0.2
+
+expression_min_count: 10
+
+gprofiler_url: "https://biit.cs.ut.ee/gprofiler_archive3/e110_eg57_p18"
+
+seed: 12345
+
+threads:
+  consensus_network: 16
+  module_preservation: 4
+  merge_height_expression_network: 16
+  leave_one_out_network: 8
+  power_sensitivity: 8
+
+upstream_software:
+  step: "Read processing (nf-core/rnaseq)"
+  versions:
+    nf-core/rnaseq: "3.20.0"
+    Nextflow: "24.10.4"
+    FastQC: "0.12.1"
+    Trim Galore (cutadapt): "0.6.10 (4.9)"
+    STAR: "2.7.9a"
+    Salmon: "1.10.1"
+    SAMtools: "1.21"
+    tximport: "1.30.0"
+    R (within pipeline): "4.3.3"

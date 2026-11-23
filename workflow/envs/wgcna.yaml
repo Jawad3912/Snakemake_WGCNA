@@ -1,0 +1,31 @@
+name: wgcna
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - r-base=4.6.1
+  - c-compiler
+  - cxx-compiler
+  - fortran-compiler
+  - make
+  - pkg-config
+  - cairo
+  - expat
+  - fontconfig
+  - freetype
+  - fribidi
+  - harfbuzz
+  - icu
+  - libcurl
+  - libjpeg-turbo
+  - libpng
+  - libtiff
+  - libuv
+  - libwebp
+  - libxml2-devel
+  - openssl
+  - zlib
+  - poppler
+  - libblas=*=*netlib
+  - liblapack=*=*netlib
+

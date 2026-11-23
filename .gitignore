@@ -1,0 +1,11 @@
+# Snakemake
+.snakemake/
+results/
+logs/
+benchmarks/
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+Rplots.pdf
